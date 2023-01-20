@@ -1,13 +1,24 @@
-import React, { useState } from "react";
+import React, { useContext } from "react";
 import styled from "styled-components";
+import {
+  CountStateContext,
+  CountDispatchContext,
+} from "./context/CountProvider";
 
 const Count = () => {
-  const [value, setValue] = useState(0);
+  const countState = useContext(CountStateContext);
+  const countDispatch = useContext(CountDispatchContext);
+
   return (
     <CountWrapper>
-      {value}
-      <button onClick={() => setValue((prev) => prev + 1)}>+</button>
-      <button onClick={() => setValue((prev) => prev - 1)}>-</button>
+      {countState?.valueNum}
+      <button onClick={() => countDispatch!({ type: "PLUS" })}>+</button>
+      <button onClick={() => countDispatch!({ type: "MINUS" })}>
+        -
+      </button>
+      <button onClick={() => countDispatch!({ type: "SET_DEFAULT" })}>
+        초기화
+      </button>
     </CountWrapper>
   );
 };
