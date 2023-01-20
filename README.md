@@ -1,46 +1,139 @@
-# Getting Started with Create React App
+# Typescript에서 context API 멋지게 사용하기👍
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+### 1. useReducer를 사용하여 state context와 dispatch context를 따로 생성하고 제공
 
-## Available Scripts
+#### 📌 CountProvider.tsx
+```tsx
+import React, {
+  useReducer,
+  createContext,
+  Dispatch,
+  PropsWithChildren,
+} from "react";
 
-In the project directory, you can run:
+export interface TypeCountState {
+  valueNum: number;
+}
 
-### `npm start`
+type Action = { type: "SET_DEFAULT" } | { type: "PLUS" } | { type: "MINUS" };
+type TypeCountDispatch = Dispatch<Action>;
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+export const CountStateContext = createContext<TypeCountState | undefined>(undefined);
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+export const CountDispatchContext = createContext<TypeCountDispatch | undefined>(
+  undefined
+);
 
-### `npm test`
+export const countReducer = (state: TypeCountState, action: Action) => {
+  switch (action.type) {
+    case "SET_DEFAULT": {
+      return { ...state, valueNum: 0 };
+    }
+    case "PLUS": {
+      return { ...state, valueNum: state.valueNum + 1 };
+    }
+    case "MINUS": {
+      if (state.valueNum) return { ...state, valueNum: state.valueNum - 1 };
+      else return { ...state, valueNum: 0 };
+    }
+    default: {
+      return state;
+    }
+  }
+};
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+const CountProvider = ({ children }: PropsWithChildren) => {
+  const [count, dispatch] = useReducer(countReducer, { valueNum: 0 });
 
-### `npm run build`
+  return (
+    <CountDispatchContext.Provider value={dispatch}>
+      <CountStateContext.Provider value={count}>
+        {children}
+      </CountStateContext.Provider>
+    </CountDispatchContext.Provider>
+  );
+};
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+export default CountProvider;
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+#### 📌 Count.tsx
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```tsx
+import React, { useContext } from "react";
+import styled from "styled-components";
+import {
+  CountStateContext,
+  CountDispatchContext,
+} from "./context/CountProvider";
 
-### `npm run eject`
+const Count = () => {
+  const countState = useContext(CountStateContext);
+  const countDispatch = useContext(CountDispatchContext);
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+  return (
+    <CountWrapper>
+      {countState?.valueNum}
+      <button onClick={() => countDispatch!({ type: "PLUS" })}>+</button>
+      <button onClick={() => countDispatch!({ type: "MINUS" })}>
+        -
+      </button>
+      <button onClick={() => countDispatch!({ type: "SET_DEFAULT" })}>
+        초기화
+      </button>
+    </CountWrapper>
+  );
+};
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+export default Count;
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+```
+#### 📌 문제점
+CountProvider.tsx에서 Context의 타입은 undefined가 포함된 유니온 타입.
+따라서 Count.tsx에서 생성된 Context를 사용할 때, 타입을 검사해주거나 옵셔널을 사용해야한다.
+또는 !를 이용하여 null이나 undefined가 아님을 알려주어야 한다.
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+## 2. 커스텀 훅 정의 및 적용
 
-## Learn More
+#### 📌 CountProvider.tsx
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```tsx
+(...생략)
+export const useCountState = () => {
+  const countState = useContext(CountStateContext);
+  if (!countState) throw new Error("CountProvider not found!");
+  return countState;
+};
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+export const useCountDispatch = () => {
+  const countDispatch = useContext(CountDispatchContext);
+  if (!countDispatch) throw new Error("CountProvider not found!");
+  return countDispatch;
+};
+```
+context가 undefined라면 에러를 throw하여 context의 타입이 falsy하지 않음을 미리 증명한다.
+
+#### 📌 Count.tsx
+
+```tsx
+import { useCountDispatch, useCountState } from "./context/CountProvider";
+
+const Count = () => {
+  const countState = useCountState();
+  const countDispatch = useCountDispatch();
+
+  return (
+    <CountWrapper>
+      {countState.valueNum}
+      <button onClick={() => countDispatch({ type: "PLUS" })}>+</button>
+      <button onClick={() => countDispatch({ type: "MINUS" })}>-</button>
+      <button onClick={() => countDispatch({ type: "SET_DEFAULT" })}>
+        초기화
+      </button>
+    </CountWrapper>
+  );
+};
+
+export default Count;
+```
+정의한 커스텀 훅을 사용하여 기능을 구현
