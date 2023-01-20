@@ -3,6 +3,7 @@ import React, {
   createContext,
   Dispatch,
   PropsWithChildren,
+  useContext,
 } from "react";
 
 export interface TypeCountState {
@@ -12,11 +13,13 @@ export interface TypeCountState {
 type Action = { type: "SET_DEFAULT" } | { type: "PLUS" } | { type: "MINUS" };
 type TypeCountDispatch = Dispatch<Action>;
 
-export const CountStateContext = createContext<TypeCountState | undefined>(undefined);
-
-export const CountDispatchContext = createContext<TypeCountDispatch | undefined>(
+export const CountStateContext = createContext<TypeCountState | undefined>(
   undefined
 );
+
+export const CountDispatchContext = createContext<
+  TypeCountDispatch | undefined
+>(undefined);
 
 export const countReducer = (state: TypeCountState, action: Action) => {
   switch (action.type) {
@@ -46,6 +49,18 @@ const CountProvider = ({ children }: PropsWithChildren) => {
       </CountStateContext.Provider>
     </CountDispatchContext.Provider>
   );
+};
+
+export const useCountState = () => {
+  const countState = useContext(CountStateContext);
+  if (!countState) throw new Error("CountProvider not found!");
+  return countState;
+};
+
+export const useCountDispatch = () => {
+  const countDispatch = useContext(CountDispatchContext);
+  if (!countDispatch) throw new Error("CountProvider not found!");
+  return countDispatch;
 };
 
 export default CountProvider;
